@@ -89,15 +89,16 @@ for (String os in runITsOses) {
                     // will not trample each other plus workaround for JENKINS-52657
                     dir(isUnix() ? 'test' : "c:\\mvn-it-${EXECUTOR_NUMBER}.tmp") {
                         def WORK_DIR=pwd()
-                        checkout tests
-                        if (isUnix()) {
-                            sh "rm -rvf $WORK_DIR/apache-maven-dist.zip $WORK_DIR/it-local-repo"
-                        } else {
-                            bat "if exist it-local-repo rmdir /s /q it-local-repo"
-                            bat "if exist apache-maven-dist.zip del /q apache-maven-dist.zip"
-                        }
-                        unstash 'dist'
                         try {
+							checkout tests
+							if (isUnix()) {
+								sh "rm -rvf $WORK_DIR/apache-maven-dist.zip $WORK_DIR/it-local-repo"
+							} else {
+								bat "if exist it-local-repo rmdir /s /q it-local-repo"
+								bat "if exist apache-maven-dist.zip del /q apache-maven-dist.zip"
+							}
+							unstash 'dist'
+							
                             withMaven(jdk: jdkName, maven: mvnName, mavenLocalRepo:"${WORK_DIR}/it-local-repo", options:[
                                 junitPublisher(ignoreAttachments: false)
                             ]) {
