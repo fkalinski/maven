@@ -106,9 +106,9 @@ public class MavenProject
 
     private Set<Artifact> resolvedArtifacts;
 
-    private ArtifactFilter artifactFilter;
+    private ThreadLocal<ArtifactFilter> artifactFilter = new ThreadLocal<>();
 
-    private Set<Artifact> artifacts;
+    private ThreadLocal<Set<Artifact>> artifacts = new ThreadLocal<>();
 
     private Artifact parentArtifact;
 
@@ -147,7 +147,7 @@ public class MavenProject
     private Artifact artifact;
 
     // calculated.
-    private Map<String, Artifact> artifactMap;
+    private ThreadLocal<Map<String, Artifact>> artifactMap = new ThreadLocal<>();
 
     private Model originalModel;
 
@@ -690,10 +690,10 @@ public class MavenProject
 
     public void setArtifacts( Set<Artifact> artifacts )
     {
-        this.artifacts = artifacts;
+        this.artifacts.set(artifacts);
 
         // flush the calculated artifactMap
-        artifactMap = null;
+        this.artifactMap.remove();
     }
 
     /**
@@ -706,34 +706,39 @@ public class MavenProject
      */
     public Set<Artifact> getArtifacts()
     {
-        if ( artifacts == null )
+        if ( artifacts.get() == null )
         {
-            if ( artifactFilter == null || resolvedArtifacts == null )
+            if ( artifactFilter.get() == null || resolvedArtifacts == null )
             {
-                artifacts = new LinkedHashSet<>();
+                artifacts.set(new LinkedHashSet<Artifact>());
             }
             else
             {
-                artifacts = new LinkedHashSet<>( resolvedArtifacts.size() * 2 );
+                artifacts.set(new LinkedHashSet<Artifact>( resolvedArtifacts.size() * 2 ));
                 for ( Artifact artifact : resolvedArtifacts )
                 {
-                    if ( artifactFilter.include( artifact ) )
+                    if ( artifactFilter.get().include( artifact ) )
                     {
-                        artifacts.add( artifact );
+                        artifacts.get().add( artifact );
                     }
                 }
             }
         }
-        return artifacts;
+        return artifacts.get();
     }
 
+    /**
+     * Not used in the lifecycle - exposed as public only for tests.
+     *
+     * @return {@link Map} of {@link Artifact}
+     */
     public Map<String, Artifact> getArtifactMap()
     {
-        if ( artifactMap == null )
+        if ( artifactMap.get() == null )
         {
-            artifactMap = ArtifactUtils.artifactMapByVersionlessId( getArtifacts() );
+            artifactMap.set(ArtifactUtils.artifactMapByVersionlessId( getArtifacts() ));
         }
-        return artifactMap;
+        return artifactMap.get();
     }
 
     public void setPluginArtifacts( Set<Artifact> pluginArtifacts )
@@ -1417,8 +1422,8 @@ public class MavenProject
     public void setResolvedArtifacts( Set<Artifact> artifacts )
     {
         this.resolvedArtifacts = ( artifacts != null ) ? artifacts : Collections.<Artifact>emptySet();
-        this.artifacts = null;
-        this.artifactMap = null;
+        this.artifacts.remove();
+        this.artifactMap.remove();
     }
 
     /**
@@ -1431,9 +1436,9 @@ public class MavenProject
      */
     public void setArtifactFilter( ArtifactFilter artifactFilter )
     {
-        this.artifactFilter = artifactFilter;
-        this.artifacts = null;
-        this.artifactMap = null;
+        this.artifactFilter.set(artifactFilter);
+        this.artifacts.remove();
+        this.artifactMap.remove();
     }
 
     /**
